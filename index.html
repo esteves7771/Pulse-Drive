@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Pulse Drive</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Canvas holder -->
+    <canvas id="gl"></canvas>
+
+    <!-- ===== UI LAYERS ===== -->
+    <!-- Start Menu -->
+    <div class="screen screen-menu" id="menu">
+      <div class="logo">Pulse <span>Drive</span></div>
+      <div class="menu-cards">
+        <button class="btn xl" id="btnStart">Start Race</button>
+        <button class="btn" id="btnOptions">Options</button>
+        <button class="btn" id="btnCredits">Credits</button>
+      </div>
+
+      <div class="tracks">
+        <div class="track-card" data-track="A">
+          <div class="tname">Track A — Coastline Cruise</div>
+          <div class="stars">★★☆</div>
+          <div class="meta">Best Lap: <span class="best" id="bestA">—</span></div>
+        </div>
+        <div class="track-card" data-track="B">
+          <div class="tname">Track B — Neon City</div>
+          <div class="stars">★★★</div>
+          <div class="meta">Best Lap: <span class="best" id="bestB">—</span></div>
+        </div>
+        <div class="track-card" data-track="C">
+          <div class="tname">Track C — Alpine Sprint</div>
+          <div class="stars">★★★☆</div>
+          <div class="meta">Best Lap: <span class="best" id="bestC">—</span></div>
+        </div>
+      </div>
+
+      <div class="credits-pop" id="creditsPop">
+        <div class="card">
+          <div class="row between">
+            <div class="h">Credits</div>
+            <button class="icon" id="xCredits">✕</button>
+          </div>
+          <p>Design/code: You + ChatGPT. Music from your GitHub raw URLs. Three.js WebGL2.</p>
+        </div>
+      </div>
+
+      <div class="options-pop" id="optionsPop">
+        <div class="card">
+          <div class="row between">
+            <div class="h">Options</div>
+            <button class="icon" id="xOptions">✕</button>
+          </div>
+          <div class="row">
+            <label class="switch">
+              <input type="checkbox" id="optMusic">
+              <span>Music</span>
+            </label>
+          </div>
+          <div class="row">
+            <label class="switch">
+              <input type="checkbox" id="optLowFX">
+              <span>Performance Mode</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Car Select -->
+    <div class="screen screen-car" id="carSelect">
+      <div class="panel">
+        <div class="h">Choose Your Car</div>
+        <div class="cars" id="carList"></div>
+        <div class="colors">
+          <div class="swatch" data-color="#ff3355"></div>
+          <div class="swatch" data-color="#27c9ff"></div>
+          <div class="swatch" data-color="#ffd028"></div>
+          <div class="swatch" data-color="#66ff8a"></div>
+          <div class="swatch" data-color="#c28aff"></div>
+        </div>
+        <div class="row between">
+          <button class="btn" id="btnBackMenu">Back</button>
+          <button class="btn xl" id="btnRaceGo">Race →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD / In-Race -->
+    <div class="hud" id="hud">
+      <div class="hud-top-left">
+        <div id="hudPos">1/5</div>
+        <div id="hudLap">Lap 1/3</div>
+        <div id="hudTime">0:00.000</div>
+      </div>
+      <div class="hud-top-right">
+        <canvas id="minimap" width="160" height="160"></canvas>
+      </div>
+      <div class="hud-bottom">
+        <div class="speed" id="hudSpeed">000</div>
+        <div class="mini-bar">
+          <button class="mini" id="btnPause">▢▢</button>
+          <button class="mini" id="btnMusic">Music ON</button>
+        </div>
+      </div>
+
+      <!-- Touch HUD (mobile) -->
+      <div class="touch">
+        <div class="pad steer">
+          <button class="tbtn" id="tLeft" aria-label="left">◀</button>
+          <button class="tbtn" id="tRight" aria-label="right">▶</button>
+        </div>
+        <div class="pad throttle">
+          <button class="tbtn big" id="tThrottle">THROTTLE</button>
+        </div>
+        <div class="pad brake">
+          <button class="tbtn big" id="tBrake">BRAKE</button>
+        </div>
+        <div class="pad handbrake">
+          <button class="tbtn" id="tHand">HAND</button>
+        </div>
+      </div>
+
+      <div id="toast" class="toast"></div>
+    </div>
+
+    <!-- Pause / Results overlay -->
+    <div class="overlay" id="pauseOverlay">
+      <div class="card">
+        <div class="h">Paused</div>
+        <div class="row gap">
+          <button class="btn" id="btnResume">Resume</button>
+          <button class="btn" id="btnRestart">Restart</button>
+          <button class="btn" id="btnQuit">Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="resultsOverlay">
+      <div class="card">
+        <div class="h">Results</div>
+        <div id="resultsBody"></div>
+        <div class="row gap">
+          <button class="btn" id="btnAgain">Race Again</button>
+          <button class="btn" id="btnChangeCar">Change Car</button>
+          <button class="btn" id="btnMain">Main Menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two hidden audio tags for crossfade -->
+  <audio id="audA" preload="auto" crossorigin="anonymous"></audio>
+  <audio id="audB" preload="auto" crossorigin="anonymous"></audio>
+
+  <script type="module" src="dist/main.js"></script>
+</body>
+</html>
