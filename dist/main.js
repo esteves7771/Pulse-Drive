@@ -169,7 +169,8 @@ function makeCarMesh(color="#27c9ff"){ const g=new THREE.Group();
 
 // ===== Renderer / World =====
 class World {
-  constructor(canvas){ this.canvas=canvas; this.renderer=new THREE.WebGLRenderer({canvas,antialias:false}); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2)); this.renderer.setSize(window.innerWidth,window.innerHeight); this.scene=new THREE.Scene();
+  constructor(canvas){ this.canvas=canvas; this.renderer=new THREE.WebGLRenderer({canvas,antialias:false});
+    this.renderer.setClearColor(0x0b1220, 1); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2)); this.renderer.setSize(window.innerWidth,window.innerHeight); this.scene=new THREE.Scene();
     this.fog=new THREE.FogExp2(0x0a1326,0.003); this.scene.fog=this.fog; this.camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,2000); this.camera.position.set(0,3,6);
     const hemi=new THREE.HemisphereLight(0x7fb5ff,0x1a2338,0.6); this.scene.add(hemi);
     const dir=new THREE.DirectionalLight(0xffe5c1,0.8); dir.position.set(5,10,8); this.scene.add(dir);
@@ -199,7 +200,7 @@ function buildRoad(track){ const w=track.width; const pts=track.centerline.map((
   }
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3)); geo.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3)); geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geo.setIndex(indices);
   const tex=new THREE.CanvasTexture(makeRoadTexture()); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1,pts.length/10);
-  const mat=new THREE.MeshLambertMaterial({map:tex, side:THREE.DoubleSide}); const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=false; return mesh;
+  const mat=new THREE.MeshLambertMaterial({map:tex, side:THREE.DoubleSide}); const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=false; mesh.frustumCulled=false; mesh.position.y=0; return mesh;
 }
 function makeRoadTexture(){ const c=document.createElement('canvas'); c.width=64; c.height=256; const ctx=c.getContext('2d'); ctx.fillStyle='#1a1f28'; ctx.fillRect(0,0,64,256); ctx.fillStyle='#2b3340'; for(let y=0;y<256;y+=16){ ctx.fillRect(0,y,64,1);} ctx.fillStyle='#b7c7ff'; ctx.fillRect(31,0,2,256); return c; }
 
@@ -223,7 +224,7 @@ class Car {
     const fwd=new THREE.Vector3(Math.sin(this.yaw),0,Math.cos(this.yaw));
     const right=new THREE.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));
     const desired=this.engine*this.accel - this.brake*14 - this.hand*10; // accel m/s^2
-    const vlong=fwd.dot(this.vel); let vlat=right.dot(this.vel);
+    let vlong=fwd.dot(this.vel); let vlat=right.dot(this.vel);
     vlong += desired*dt; const speed=Math.hypot(vlong,vlat);
     // lateral grip
     const maxLat= this.grip*10; vlat=lerp(vlat,0, clamp(dt*maxLat,0,1)); vlat -= speed*steerAngle*dt*2; // yaw induces lateral
