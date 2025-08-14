@@ -219,7 +219,7 @@ class Car {
   constructor(world,color){ this.world=world; this.mesh=makeCarMesh(color); this.pos=new THREE.Vector3(0,0.08,0); this.vel=new THREE.Vector3(); this.yaw=0; this.steer=0; this.steerVel=0; this.speedKmh=0; this.engine=0; this.brake=0; this.hand=0; this.maxSpeed=78; this.accel=9.5; this.grip=1.0; }
   setSpec(spec){ this.maxSpeed=spec.top; this.accel=spec.acc; this.grip=spec.grip; }
   update(dt){ // steering filter
-    const steerTarget=clamp(this.steer,-1,1); this.steerVel=lerp(this.steerVel,steerTarget,dt*6); const steerAngle=this.steerVel*0.65; // radians
+    const steerTarget=clamp(this.steer,-1,1); this.steerVel=lerp(this.steerVel,steerTarget,dt*6); const steerAngle=-this.steerVel*0.65; // radians (invert so A=left, D=right)
     // simple vehicle model
     const fwd=new THREE.Vector3(Math.sin(this.yaw),0,Math.cos(this.yaw));
     const right=new THREE.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw));
@@ -244,9 +244,17 @@ class Car {
 // ===== AI Bot =====
 class Bot extends Car{
   constructor(world,color,track,offset){ super(world,color); this.track=track; this.i=offset||0; this.aggr=0.9+Math.random()*0.14; this.brVar=0.95+Math.random()*0.1; this.jitter=(Math.random()*0.1)-0.05; }
-  updateAI(dt){ // pursue next point on centerline with lookahead
-    const pts=this.track.centerline3; const N=pts.length; const look= Math.floor( lerp(8,20, clamp(this.speedKmh/240,0,1)) ); this.i=(this.i+1)%N; const target=pts[(this.i+look)%N];
-    const to=new THREE.Vector3().subVectors(target,this.pos); const desiredYaw=Math.atan2(to.x,to.z); let dy=desiredYaw-this.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy)); this.steer=clamp(dy*1.8 + this.jitter, -1, 1);
+  updateAI(dt){ // pursue nearest path point + lookahead, reduces corner cutting
+    const pts=this.track.centerline3; const N=pts.length;
+    // find nearest index in a local window
+    const search=30; let bestI=this.i, bestD=Infinity; for(let k=-search;k<=search;k++){ const j=(this.i+k+N)%N; const d=pts[j].distanceToSquared(this.pos); if(d<bestD){ bestD=d; bestI=j; } }
+    this.i=bestI;
+    const look=Math.floor( lerp(10,28, clamp(this.speedKmh/240,0,1)) );
+    const target=pts[(this.i+look)%N];
+    const to=new THREE.Vector3().subVectors(target,this.pos);
+    const desiredYaw=Math.atan2(to.x,to.z);
+    let dy=desiredYaw-this.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy));
+    this.steer=clamp(dy*2.0 + this.jitter, -1, 1);
     // speed target by curvature
     const k=this.track.curvArr[this.i]; const vt = clamp( Math.sqrt( (this.grip*9.0) / (k+1e-4) ), 12, this.maxSpeed/3.6 );
     const vlong=this.vel.length(); if(vlong<vt) { this.engine=this.aggr; this.brake=0; } else { this.engine=0.2; this.brake=(vlong-vt)*0.8*this.brVar; }
@@ -345,7 +353,21 @@ class Game {
     const startPt=this.track.centerline3[2]; const startTan=this.track.centerline3[10].clone().sub(this.track.centerline3[0]).normalize(); this.player.pos.copy(startPt.clone().add(new THREE.Vector3(0,0.08,0))); this.player.yaw=Math.atan2(startTan.x,startTan.z); this.world.scene.add(this.player.mesh);
 
     // Bots
-    this.bots=[]; const colors=["#ffd028","#66ff8a","#c28aff","#ff3355"]; for(let i=0;i<4;i++){ const b=new Bot(this.world,colors[i%colors.length],this.track,(i*40)%this.track.centerline3.length); b.setSpec({top: this.player.maxSpeed*(0.96+0.06*Math.random()), acc: this.player.accel*(0.95+0.1*Math.random()), grip: this.player.grip*(0.96+0.08*Math.random())}); this.world.scene.add(b.mesh); this.bots.push(b); }
+    this.bots=[]; const colors=["#ffd028","#66ff8a","#c28aff","#ff3355"]; const len=this.track.centerline3.length;
+    for(let i=0;i<4;i++){
+      const offset=(i*Math.floor(len/5))%len; // stagger around grid
+      const b=new Bot(this.world,colors[i%colors.length],this.track,offset);
+      b.setSpec({top: this.player.maxSpeed*(0.96+0.06*Math.random()), acc: this.player.accel*(0.95+0.1*Math.random()), grip: this.player.grip*(0.96+0.08*Math.random())});
+      // Spawn bot at its path offset
+      const p=this.track.centerline3[offset];
+      const f=this.track.centerline3[(offset+6)%len].clone().sub(p).normalize();
+      b.pos.set(p.x,0.08,p.z);
+      b.yaw=Math.atan2(f.x,f.z);
+      b.mesh.position.copy(b.pos);
+      b.mesh.rotation.y=b.yaw;
+      b.i=offset;
+      this.world.scene.add(b.mesh); this.bots.push(b);
+    }
 
     // Camera setup
     this.world.camera.fov=70; this.world.camera.updateProjectionMatrix();
