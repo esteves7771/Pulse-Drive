@@ -267,7 +267,7 @@ class Game {
     this.acc=0; this.fixed=1/60; this.lastT=performance.now(); requestAnimationFrame(this.loop.bind(this));
   }
   wireUI(){
-    const $=id=>document.getElementById(id);
+    const $=sel=>document.querySelector(sel);
     // Menu
     $('#btnStart').onclick=()=>{ this.toCarSelect(); };
     $('#btnOptions').onclick=()=>{ document.getElementById('optionsPop').classList.add('show'); };
