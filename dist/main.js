@@ -150,22 +150,55 @@ function bakeTrack(key){
   const bank=new Float32Array(pts.length); const grade=new Float32Array(pts.length);
   let idx=0; for(const s of def.segments){ const [type,len,opt]=s; const n=Math.max(2,Math.floor(len/2)); for(let i=0;i<n;i++){ bank[idx%pts.length]=(opt?.bank||0); grade[idx%pts.length]=(opt?.grade||0); idx++; } }
   // Props (instanced) — scatter by seed
-  const props=[]; for(let i=0;i<pts.length; i+=20){ const r=rng(); const side=r<.5?-1:1; const off=def.width*(0.7+1.2*rng()); const nx=Math.cos(tang[i]+Math.PI/2)*side; const ny=Math.sin(tang[i]+Math.PI/2)*side; props.push({x:pts[i].x+nx*off,y:pts[i].y+ny*off,type:(r<.5?'palm':'pine')}); }
+  const props=[]; for(let i=0;i<pts.length; i+=10)){ const r=rng(); const side=r<.5?-1:1; const off=def.width*(0.7+1.2*rng()); const nx=Math.cos(tang[i]+Math.PI/2)*side; const ny=Math.sin(tang[i]+Math.PI/2)*side; props.push({x:pts[i].x+nx*off,y:pts[i].y+ny*off,type:(r<.5?'palm':'pine')}); }
   const data={version:1, key, name:def.name, width:def.width, centerline:pts.map(p=>[p.x,p.y]), tangents:tang, curvature:curv, bank:Array.from(bank), grade:Array.from(grade), props};
   Storage.save("pd_track_"+key,data); return data;
 }
 
 // ===== Car Factory (low-poly) =====
-function makeCarMesh(color="#27c9ff"){ const g=new THREE.Group();
-  const bodyGeo=new THREE.BoxGeometry(1.8,0.48,4); const mat=new THREE.MeshLambertMaterial({color});
-  const body=new THREE.Mesh(bodyGeo,mat); body.position.y=0.36; g.add(body);
-  const cab=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.44,1.6), new THREE.MeshLambertMaterial({color:0x193044,emissive:0x0,emissiveIntensity:0.2})); cab.position.set(0,0.64,-0.4); g.add(cab);
-  const rim=new THREE.MeshBasicMaterial({color:0x111111});
-  const wgeo=new THREE.CylinderGeometry(0.38,0.38,0.28,10); wgeo.rotateZ(Math.PI/2);
-  function wheel(x,z){ const m=new THREE.Mesh(wgeo,rim); m.position.set(x,0.22,z); g.add(m); return m; }
-  wheel(0.9,-1.4); wheel(-0.9,-1.4); wheel(0.9,1.4); wheel(-0.9,1.4);
-  const under=new THREE.Mesh(new THREE.CircleGeometry(1.1,16), new THREE.MeshBasicMaterial({color:0x000000,opacity:0.5,transparent:true})); under.rotation.x=-Math.PI/2; under.position.y=0.01; g.add(under);
-  g.castShadow=false; g.receiveShadow=false; return g; }
+  function makeCarMesh(type="GT-09", color="#27c9ff"){
+  const g = new THREE.Group();
+  const rimMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const addWheels = (ax=0.9, az=1.4, r=0.38)=>{
+  const w = new THREE.CylinderGeometry(r, r, 0.28, 10); w.rotateZ(Math.PI/2);
+    for (const [x,z] of [[ ax,-az],[-ax,-az],[ ax,az],[-ax,az]]) {
+  const m = new THREE.Mesh(w, rimMat); m.position.set(x,0.22,z); g.add(m);
+    }
+  };
+  const col = new THREE.MeshLambertMaterial({ color });
+
+  if (type==="Sprinter"){ // hatch
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(1.7,0.5,3.6), col)).position.y = 0.36;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.55,1.6), new THREE.MeshLambertMaterial({color:0x183048}));
+    cab.position.set(0,0.64,-0.2); g.add(cab); addWheels(0.88,1.35,0.36);
+  } else if (type==="Vortex"){ // long/low
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.0,0.42,4.4), col); body.position.y=0.34; g.add(body);
+    const cab  = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.38,1.4), new THREE.MeshLambertMaterial({color:0x15283f}));
+    cab.position.set(0,0.58,-0.6); g.add(cab);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.08,0.5), new THREE.MeshLambertMaterial({color:0x111a2a}));
+    wing.position.set(0,0.75,1.6); g.add(wing); addWheels(1.0,1.6,0.38);
+  } else if (type==="Drift RS"){ // coupe + spoiler
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.9,0.46,4.0), col); body.position.y=0.35; g.add(body);
+    const cab  = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.44,1.5), new THREE.MeshLambertMaterial({color:0x1a2f49}));
+    cab.position.set(0,0.62,-0.3); g.add(cab);
+    const sp   = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.08,0.36), new THREE.MeshLambertMaterial({color:0x101826}));
+    sp.position.set(0,0.74,1.5); g.add(sp); addWheels(0.95,1.45,0.37);
+  } else if (type==="Rallye X"){ // boxy rally
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.7,0.52,3.7), col); body.position.y=0.37; g.add(body);
+    const cab  = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.5,1.5), new THREE.MeshLambertMaterial({color:0x1b2f48}));
+    cab.position.set(0,0.66,-0.1); g.add(cab);
+    const bump = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.2,0.2), new THREE.MeshLambertMaterial({color:0x0f1724}));
+    bump.position.set(0,0.26,1.85); g.add(bump); addWheels(0.9,1.45,0.4);
+  } else { // GT-09
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.48,4), col); body.position.y=0.36; g.add(body);
+    const cab  = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.44,1.6), new THREE.MeshLambertMaterial({color:0x193044}));
+    cab.position.set(0,0.64,-0.4); g.add(cab); addWheels(0.9,1.4,0.38);
+  }
+
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.1,16), new THREE.MeshBasicMaterial({color:0x000, transparent:true, opacity:0.5}));
+  shadow.rotation.x = -Math.PI/2; shadow.position.y = 0.01; g.add(shadow);
+  return g;
+}
 
 // ===== Renderer / World =====
 class World {
@@ -196,7 +229,10 @@ function buildRoad(track){ const w=track.width; const pts=track.centerline.map((
     positions.push(left.x,left.y,left.z, right.x,right.y,right.z);
     normals.push(0,1,0, 0,1,0);
     const v=i/10; uvs.push(0,v, 1,v);
-    if(i<pts.length-1){ const a=i*2,b=i*2+1,c=i*2+2,d=i*2+3; indices.push(a,b,c, b,d,c); }
+    if(i<pts.length-1){ const a=i*2,b=i*2+1,c=i*2+2,d=i*2+3; indices.push(a,b,c, b,d,c); 
+    if (pts.length > 2) {
+    const li = pts.length - 1;
+    indices.push(li*2, li*2+1, 0,  li*2+1, 1, 0);                  }
   }
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3)); geo.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3)); geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geo.setIndex(indices);
   const tex=new THREE.CanvasTexture(makeRoadTexture()); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1,pts.length/10);
@@ -205,18 +241,99 @@ function buildRoad(track){ const w=track.width; const pts=track.centerline.map((
 function makeRoadTexture(){ const c=document.createElement('canvas'); c.width=64; c.height=256; const ctx=c.getContext('2d'); ctx.fillStyle='#1a1f28'; ctx.fillRect(0,0,64,256); ctx.fillStyle='#2b3340'; for(let y=0;y<256;y+=16){ ctx.fillRect(0,y,64,1);} ctx.fillStyle='#b7c7ff'; ctx.fillRect(31,0,2,256); return c; }
 
 // Simple prop meshes (instanced)
-function makeInstancedProps(track){ const group=new THREE.Group(); const palmGeo=new THREE.ConeGeometry(0.6,2.2,6); const palmMat=new THREE.MeshLambertMaterial({color:0x2cc5a1});
-  const trunkGeo=new THREE.CylinderGeometry(0.18,0.24,2.2,6);
-  const pineGeo=new THREE.ConeGeometry(0.7,2.8,6);
-  const pineMat=new THREE.MeshLambertMaterial({color:0x2aa360});
-  const scale=1/4; const props=track.props||[];
-  for(const p of props){ const x=p.x*scale, z=p.y*scale; const base=new THREE.Mesh(trunkGeo,new THREE.MeshLambertMaterial({color:0x5b3a22})); base.position.set(x,1.1,z); group.add(base);
-    const top=new THREE.Mesh(p.type==='palm'?palmGeo:pineGeo, p.type==='palm'?palmMat:pineMat); top.position.set(x,2.4,z); group.add(top); }
-  return group; }
+  function makeInstancedProps(track){
+  const group = new THREE.Group();
+  const scale = 1/4;
+  const props = track.props || [];
+  if (!props.length) return group;
+
+  // Geometries & materials
+  const pineGeo = new THREE.ConeGeometry(0.7, 2.8, 6);
+  const pineMat = new THREE.MeshLambertMaterial({ color: 0x2aa360 });
+
+  const palmTopGeo = new THREE.ConeGeometry(0.6, 2.2, 6);
+  const palmTopMat = new THREE.MeshLambertMaterial({ color: 0x2cc5a1 });
+
+  const trunkGeo = new THREE.CylinderGeometry(0.18, 0.24, 2.2, 6);
+  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5b3a22 });
+
+  let pineCount = 0, palmCount = 0;
+  for (const p of props) (p.type === 'pine') ? pineCount++ : palmCount++;
+
+  if (pineCount) {
+    const instPine = new THREE.InstancedMesh(pineGeo, pineMat, pineCount);
+    const instTrunk = new THREE.InstancedMesh(trunkGeo, trunkMat, pineCount);
+    let i = 0;
+    for (const p of props) if (p.type === 'pine') {
+      instPine.setMatrixAt(i, new THREE.Matrix4().makeTranslation(p.x*scale, 2.4, p.y*scale));
+      instTrunk.setMatrixAt(i, new THREE.Matrix4().makeTranslation(p.x*scale, 1.1, p.y*scale));
+      i++;
+    }
+    group.add(instPine, instTrunk);
+  }
+
+  if (palmCount) {
+    const instPalm = new THREE.InstancedMesh(palmTopGeo, palmTopMat, palmCount);
+    const instTrunk2 = new THREE.InstancedMesh(trunkGeo, trunkMat, palmCount);
+    let j = 0;
+    for (const p of props) if (p.type === 'palm') {
+      instPalm.setMatrixAt(j, new THREE.Matrix4().makeTranslation(p.x*scale, 2.4, p.y*scale));
+      instTrunk2.setMatrixAt(j, new THREE.Matrix4().makeTranslation(p.x*scale, 1.1, p.y*scale));
+      j++;
+    }
+    group.add(instPalm, instTrunk2);
+  }
+
+  return group;
+}
+
+  function applyTheme(trackKey, world){
+  const sky = world.scene.children.find(o => o.isMesh && o.geometry && o.geometry.type === 'SphereGeometry');
+  const hemi = world.scene.children.find(o => o.isHemisphereLight);
+  const dir  = world.scene.children.find(o => o.isDirectionalLight);
+
+  if (trackKey === 'A') { // Coastline
+    sky.material.color.set(0x1a315c);
+    world.fog.color.set(0x0b1a33);
+    world.fog.density = 0.0022;
+    hemi.color.set(0x88bfff); hemi.groundColor.set(0x1a2338); hemi.intensity = 0.7;
+    dir.color.set(0xffe2b0); dir.intensity = 0.9;
+
+    // simple water plane far below
+    const sea = new THREE.Mesh(
+      new THREE.PlaneGeometry(4000, 4000, 1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x0b2d4f, transparent:true, opacity:0.7 })
+    );
+    sea.rotation.x = -Math.PI/2; sea.position.y = -0.05;
+    world.scene.add(sea);
+  }
+  else if (trackKey === 'B') { // Neon City
+    sky.material.color.set(0x0f1436);
+    world.fog.color.set(0x0a0f28);
+    world.fog.density = 0.0028;
+    hemi.color.set(0x8cd7ff); hemi.groundColor.set(0x1b2040); hemi.intensity = 0.85;
+    dir.color.set(0xff7ad1); dir.intensity = 0.7;
+  }
+  else { // Alpine
+    sky.material.color.set(0x10213c);
+    world.fog.color.set(0x081626);
+    world.fog.density = 0.0025;
+    hemi.color.set(0xaad0ff); hemi.groundColor.set(0x152236); hemi.intensity = 0.75;
+    dir.color.set(0xf7f1d0); dir.intensity = 0.8;
+  }
+}
 
 // ===== Physics & Car Controller =====
 class Car {
-  constructor(world,color){ this.world=world; this.mesh=makeCarMesh(color); this.pos=new THREE.Vector3(0,0.08,0); this.vel=new THREE.Vector3(); this.yaw=0; this.steer=0; this.steerVel=0; this.speedKmh=0; this.engine=0; this.brake=0; this.hand=0; this.maxSpeed=78; this.accel=9.5; this.grip=1.0; }
+  constructor(world, color, type = "GT-09") {
+    this.world = world;
+    this.mesh  = makeCarMesh(type, color);
+    this.pos = new THREE.Vector3(0,0.08,0);
+    this.vel = new THREE.Vector3();
+    this.yaw = 0; this.steer = 0; this.steerVel = 0;
+    this.speedKmh = 0; this.engine = 0; this.brake = 0; this.hand = 0;
+    this.maxSpeed = 78; this.accel = 9.5; this.grip = 1.0;
+  }
   setSpec(spec){ this.maxSpeed=spec.top; this.accel=spec.acc; this.grip=spec.grip; }
   update(dt){ // steering filter
     const steerTarget=clamp(this.steer,-1,1); this.steerVel=lerp(this.steerVel,steerTarget,dt*6); const steerAngle=-this.steerVel*0.65; // radians (invert so A=left, D=right)
@@ -242,8 +359,15 @@ class Car {
 }
 
 // ===== AI Bot =====
-class Bot extends Car{
-  constructor(world,color,track,offset){ super(world,color); this.track=track; this.i=offset||0; this.aggr=0.9+Math.random()*0.14; this.brVar=0.95+Math.random()*0.1; this.jitter=(Math.random()*0.1)-0.05; }
+class Bot extends Car {
+  constructor(world, color, track, offset, type = "GT-09") {
+    super(world, color, type);
+    this.track = track;
+    this.i = offset || 0;
+    this.aggr = 0.9 + Math.random() * 0.14;
+    this.brVar = 0.95 + Math.random() * 0.1;
+    this.jitter = (Math.random() * 0.1) - 0.05;
+  }
   updateAI(dt){ // pursue nearest path point + lookahead, reduces corner cutting
     const pts=this.track.centerline3; const N=pts.length;
     // find nearest index in a local window
@@ -346,18 +470,35 @@ class Game {
     const sky=new THREE.Mesh(new THREE.SphereGeometry(1200,16,12), new THREE.MeshBasicMaterial({color:0x0e1b33,side:THREE.BackSide, fog:false})); this.world.scene.add(sky);
 
     // Track
-    this.track=this.buildTrack(); const road=buildRoad(this.track); this.world.scene.add(road); this.world.scene.add(makeInstancedProps(this.track));
+    this.track=this.buildTrack(); const road=buildRoad(this.track); this.world.scene.add(road);applyTheme(this.trackKey, this.world); this.world.scene.add(makeInstancedProps(this.track));
 
     // Player
-    this.player=new Car(this.world,last.color); this.player.setSpec(this.selectedCar?.spec||{top:78,acc:9.5,grip:1.0});
-    const startPt=this.track.centerline3[2]; const startTan=this.track.centerline3[10].clone().sub(this.track.centerline3[0]).normalize(); this.player.pos.copy(startPt.clone().add(new THREE.Vector3(0,0.08,0))); this.player.yaw=Math.atan2(startTan.x,startTan.z); this.world.scene.add(this.player.mesh);
+    this.player = new Car(
+  this.world,
+  last.color,
+  this.selectedCar?.name || "GT-09"
+);
+this.player.setSpec(this.selectedCar?.spec || { top:78, acc:9.5, grip:1.0 });
 
     // Bots
-    this.bots=[]; const colors=["#ffd028","#66ff8a","#c28aff","#ff3355"]; const len=this.track.centerline3.length;
-    for(let i=0;i<4;i++){
-      const offset=(i*Math.floor(len/5))%len; // stagger around grid
-      const b=new Bot(this.world,colors[i%colors.length],this.track,offset);
-      b.setSpec({top: this.player.maxSpeed*(0.96+0.06*Math.random()), acc: this.player.accel*(0.95+0.1*Math.random()), grip: this.player.grip*(0.96+0.08*Math.random())});
+    this.bots = [];
+const colors = ["#ffd028","#66ff8a","#c28aff","#ff3355"];
+const botTypes = ["Sprinter", "Vortex", "Drift RS", "GT-09", "Rallye X"];
+const len = this.track.centerline3.length;
+for(let i = 0; i < 4; i++) {
+  const offset = (i * Math.floor(len / 5)) % len;
+  const b = new Bot(
+    this.world,
+    colors[i % colors.length],
+    this.track,
+    offset,
+    botTypes[Math.floor(Math.random() * botTypes.length)]
+  );
+  b.setSpec({
+    top: this.player.maxSpeed * (0.96 + 0.06 * Math.random()),
+    acc: this.player.accel * (0.95 + 0.1 * Math.random()),
+    grip: this.player.grip * (0.96 + 0.08 * Math.random())
+  });
       // Spawn bot at its path offset
       const p=this.track.centerline3[offset];
       const f=this.track.centerline3[(offset+6)%len].clone().sub(p).normalize();
