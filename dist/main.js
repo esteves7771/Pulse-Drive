@@ -199,7 +199,7 @@ function buildRoad(track){ const w=track.width; const pts=track.centerline.map((
   }
   const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3)); geo.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3)); geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geo.setIndex(indices);
   const tex=new THREE.CanvasTexture(makeRoadTexture()); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1,pts.length/10);
-  const mat=new THREE.MeshLambertMaterial({map:tex}); const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=false; return mesh;
+  const mat=new THREE.MeshLambertMaterial({map:tex, side:THREE.DoubleSide}); const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=false; return mesh;
 }
 function makeRoadTexture(){ const c=document.createElement('canvas'); c.width=64; c.height=256; const ctx=c.getContext('2d'); ctx.fillStyle='#1a1f28'; ctx.fillRect(0,0,64,256); ctx.fillStyle='#2b3340'; for(let y=0;y<256;y+=16){ ctx.fillRect(0,y,64,1);} ctx.fillStyle='#b7c7ff'; ctx.fillRect(31,0,2,256); return c; }
 
@@ -348,6 +348,13 @@ class Game {
 
     // Camera setup
     this.world.camera.fov=70; this.world.camera.updateProjectionMatrix();
+    // Snap camera to player immediately
+    { const cam=this.world.camera;
+      const target=this.player.pos.clone().add(new THREE.Vector3(-Math.sin(this.player.yaw)*6,2.8,-Math.cos(this.player.yaw)*6));
+      cam.position.copy(target);
+      const look=this.player.pos.clone().add(new THREE.Vector3(Math.sin(this.player.yaw)*8,1.2,Math.cos(this.player.yaw)*8));
+      cam.lookAt(look);
+      cam.updateProjectionMatrix(); }
 
     // Music
     music.toRace();
